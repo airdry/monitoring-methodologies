@@ -1,0 +1,51 @@
+version: "3"
+x-default:
+  &default
+  restart: always
+  logging:
+    driver: "json-file"
+    options:
+      max-size: 50m
+services:
+  vmagent:
+    <<: *default
+    container_name: vmagent
+    image: victoriametrics/vmagent:v1.90.0
+    ports:
+      - 8429:8429
+    depends_on:
+      - "victoriametrics"
+    volumes:
+      - vmagentdata:/vmagentdata
+      - ./configs/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - "--promscrape.config=/etc/prometheus/prometheus.yml"
+      - "--remoteWrite.url=http://victoriametrics:8428/api/v1/write"
+  victoriametrics:
+    <<: *default
+    container_name: victoriametrics
+    image: victoriametrics/victoria-metrics:v1.90.0
+    ports:
+      - 8428:8428
+    volumes:
+      - vmdata:/storage
+    command:
+      - "--storageDataPath=/storage"
+      - "--httpListenAddr=:8428"
+      - "--retentionPeriod=1d"
+  grafana:
+    <<: *default
+    container_name: grafana
+    depends_on:
+      - "victoriametrics"
+    image: grafana/grafana:9.4.7
+    ports:
+      - 3000:3000
+    volumes:
+      - grafanadata:/var/lib/grafana
+      - ./configs/grafana/provisioning/:/etc/grafana/provisioning/
+
+volumes:
+  vmagentdata: {}
+  vmdata: {}
+  grafanadata: {}
